@@ -3,6 +3,7 @@ sys.path.insert(0, 'lib/twtl')
 
 import twtl.twtl as twtl
 from twtl.dfa import Op, DFAType
+import operator
 import util
 
 def translate(phi):
@@ -27,7 +28,7 @@ def get_cat_operands(ast):
     else:
         left = [ast.left]
 
-    return [ast.right] + left
+    return left + [ast.right]
 
 def final(ast):
     return ast.final
@@ -57,6 +58,7 @@ def forward_inputsyms(state, dfa):
     for n, d in dfa.g[state].items():
         # if d['label'] != '(else)': # FIXME more complicated than this, not
         # sure how to do this
+        # @CRISTI: HALP!
         symbits = reduce(operator.and_, d['input'])
         s.add(symbits)
 

@@ -116,13 +116,16 @@ def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
 
     # Sample towards a region that appears as symbol to move forwards in the DFA
     input_syms = forward_inputsyms(t_exp.state, dfa)
-    input_regions = [fromalpha(s) for s in input_syms]
+    input_regions = [fromalpha(s, props, propmap) for s in input_syms]
     bias_regions = np.random.choice(input_regions)
-    if len(prop) > 1:
+    if len(bias_regions) > 1:
         # FIXME we probably want to sample in the intersection instead
         bias_region = np.random.choice(bias_regions)
-    else:
+    elif len(bias_regions) == 1:
         bias_region = bias_regions[0]
+    else:
+        # FIXME this shouldn't happen after fixing forward_inputsyms
+        bias_region = region
 
     x_ran = random_sample(bias_region)
 
