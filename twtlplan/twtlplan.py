@@ -22,22 +22,31 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     while np.sum(taus) > eps:
         sampler = np.random.choice(samplers, p=p)
+        # notation: t_i.node = x_i
         t_exp, x_ran = sampler(region, obstacles, tree,
                                phis, taus, dfa, props, propmap)
         x_new = steer(t_exp.node, x_ran, d)
         if col_free(t_exp.node, x_new, region, obstacles):
+            # ts_near contains nodes in the same DFA state within steering
+            # radius of x_new. t_exp is always in ts_near
+            # @CRISTI: check that this makes sense
             ts_near = near([a for a in tree.flat() if a.state == t_exp.state],
                            x_new, d)
             ts_near = [t for t in ts_near
                        if col_free(t.node, x_new, region, obstacles)]
+            # Obtain min cost node in ts_near
             t_min = ts_near[np.argmin([t.cost for t in ts_near])]
             t_new = Tree(x_new, t_min.cost + 1,
                          next_state(t_min.state,
                                     toalpha(x_new, props, propmap), dfa))
             t_min.add_child(t_new)
 
+            # Check if t_new is in final state
             candidate = handle_final(t_new, dfa, phis, taus)
             if candidate is None:
+                # Rewire (as in RRT*) nodes in ts_near that can be connected to
+                # t_new, i.e., nodes in a successor state
+                # @CRISTI: this should be conservative but correct
                 ts_next = near([a for a in tree.flat()
                                 if a.state in successors(t_new.state, dfa)],
                                x_new, d)
@@ -60,6 +69,8 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
             t_next.cost = t_new.cost + 1
             t_next.state = next_state(t_new.state,
                                       toalpha(t_next.node, props, propmap), dfa)
+            # Update cost and states of children and check if they've become
+            # better solutions
             candidate = update_info(t_next, dfa, phis, taus, props, propmap)
             if candidate is not None:
                 cur = candidate
@@ -79,28 +90,36 @@ def update_info(t, dfa, phis, taus, props, propmap):
     return cur
 
 def handle_final(t, dfa, phis, taus):
+    # Check if t is final and has better cost than current best
     if t.state in final(phis[-1]) and t.cost < np.sum(taus):
         cur = t
         while cur is not None:
+            # Update temporal relaxations with the new path
             for i, phi in enumerate(phis):
                 if cur.state in final(phi):
+                    # @CRISTI: make sure this is correct
                     taus[i] = cur.cost - interval(phi)[1]
         return t
     else:
         return None
 
 def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
+    # Bias towards formula with worst temporal relaxation for current solution
     phi = phis[np.argmax(taus)]
+    # Select a random node in a state that corresponds to the formula
     phi_states = subform_states(phi, dfa)
     ts = [x for x in t.flat() if x.state in phi_states]
     if len(ts) == 0:
+        # If no nodes correspond to the formula (early), sample uniformly
         return unif_sample(region, obstacles, t, phis, taus, dfa, props, propmap)
     t_exp = np.random.choice(ts)
 
+    # Sample towards a region that appears as symbol to move forwards in the DFA
     input_syms = forward_inputsyms(t_exp.state, dfa)
     input_regions = [fromalpha(s) for s in input_syms]
     bias_regions = np.random.choice(input_regions)
     if len(prop) > 1:
+        # FIXME we probably want to sample in the intersection instead
         bias_region = np.random.choice(bias_regions)
     else:
         bias_region = bias_regions[0]
