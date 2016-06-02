@@ -2,7 +2,7 @@ PIPREQ=requirements.txt
 
 LDIR=lib
 TWTLDIR=$LDIR/twtl
-LOMAPDIR=$TWTLDIR/src/lomap
+LOMAPDIR=$LDIR/lomap
 ANTLR=antlr-3.1.3
 
 TWTLURL=https://github.com/wasserfeder/twtl.git
@@ -24,5 +24,6 @@ git clone $LOMAPURL $LOMAPDIR
 cd $TWTLDIR
 touch src/__init__.py
 ant
+mv src twtl
 cd -
 
