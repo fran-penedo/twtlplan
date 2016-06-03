@@ -16,6 +16,7 @@ cd $LDIR/$ANTLR/runtime/Python
 python setup.py install
 cd -
 
+pip install cython
 pip install -r $PIPREQ
 
 git clone $TWTLURL $TWTLDIR
