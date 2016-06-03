@@ -1,9 +1,16 @@
 from util import Tree, nearest, col_free, random_sample, steer, near
+import util
 from twtl_util import get_cat_operands, toalpha, successors, translate, final, \
     next_state, fromalpha, subform_states, forward_inputsyms, interval
 import numpy as np
 import logging
 logger = logging.getLogger('TWTLPLAN')
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(levelname)s %(module)s:%(lineno)d:%(funcName)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+logger.setLevel(logging.DEBUG)
 
 
 def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
@@ -19,8 +26,13 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     cur = None
     phis = get_cat_operands(dfa.tree)
     taus = [np.infty for phi in phis]
+    its = 0
 
     while np.sum(taus) > eps:
+        its += 1
+        if its % 50 == 0:
+            util.plot_casestudy(region, props, obstacles, tree, cur)
+
         sampler = np.random.choice(samplers, p=p)
         # notation: t_i.node = x_i
         t_exp, x_ran = sampler(region, obstacles, tree,
@@ -54,8 +66,10 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
                                    dfa, phis, taus, props, propmap)
                 if candidate is not None:
                     cur = candidate
+                    util.plot_casestudy(region, props, obstacles, tree, cur)
             else:
                 cur = candidate
+                util.plot_casestudy(region, props, obstacles, tree, cur)
 
     return cur
 
@@ -98,9 +112,18 @@ def handle_final(t, dfa, phis, taus):
             for i, phi in enumerate(phis):
                 if cur.state in final(phi):
                     # @CRISTI: make sure this is correct
+                    # FIXME this assumes costs are specific for each formula,
+                    # which is not the case. We can't do that since there would
+                    # be no way to rewire to final states (since they're also
+                    # initial and thus would have cost 0)
                     taus[i] = cur.cost - interval(phi)[1]
+            cur = cur.parent
         return t
     else:
+        # This is mostly a hack
+        for i, phi in enumerate(phis[:-1]):
+            if t.state in final(phi) and taus[i] == np.infty:
+                taus[i] = t.cost - interval(phi)[1]
         return None
 
 def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
@@ -132,8 +155,8 @@ def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
     return t_exp, x_ran
 
 def unif_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
+    t_exp = np.random.choice(t.flat())
     x_ran = random_sample(region)
-    t_exp = nearest(t, x_ran)
 
     return t_exp, x_ran
 

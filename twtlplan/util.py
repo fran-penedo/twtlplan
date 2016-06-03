@@ -1,6 +1,10 @@
 import numpy as np
 from multimethods import multimethod
 import cddwrap as cdd
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import logging
+logger = logging.getLogger('TWTLPLAN')
 
 class Tree(object):
     def __init__(self, node=None, cost=np.infty, state=None):
@@ -78,6 +82,8 @@ class Box(object):
     def corners(self):
         return np.array(list(it.product(*self.constraints)))
 
+    def center(self):
+        return self.constraints.mean(axis=1)
 
 def random_sample(box):
     return np.array([np.random.uniform(c[0], c[1])
@@ -167,3 +173,55 @@ def contains(s, x):
 @multimethod(Box, Polytope)
 def contains(s, p):
     return s.aspoly().contains(p)
+
+
+def plot_tree(ax, t):
+    nodes = np.array(t.nodes())
+    ax.plot(nodes[:,0], nodes[:,1], 'bo')
+    plot_tree_lines(ax, t)
+
+def plot_tree_lines(ax, t):
+    for c in t.children:
+        ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], 'b-')
+        plot_tree_lines(ax, c)
+    label(ax, t.node + [0.1, 0], str(t.state))
+
+def plot_box(ax, box, **kwargs):
+    cs = box.constraints
+    x, y = cs[:,0]
+    w, h = cs[:,1] - cs[:,0]
+    ax.add_patch(patches.Rectangle((x,y), w, h, alpha=.5, **kwargs))
+
+def plot_poly(ax, poly, **kwargs):
+    vs = cdd.vrep_pts(poly)
+    c = centroid(vs)
+    vs = sorted(vs, key=lambda p: math.atan2(p[1]-c[1],p[0]-c[0]))
+    ax.add_patch(patches.Polygon(vs, **kwargs))
+
+def plot_path(ax, t_end):
+    cur = t_end
+    while cur.parent is not None:
+        ax.plot([cur.node[0], cur.parent.node[0]],
+                [cur.node[1], cur.parent.node[1]], 'm-')
+        cur = cur.parent
+
+
+def centroid(vs):
+    return np.average(vs, axis=0)
+
+def label(ax, center, text):
+    ax.text(center[0], center[1], text, ha="center", va="center")
+
+def plot_casestudy(cons, props, obsts, tree, cur):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plot_box(ax, cons, facecolor="white")
+    plot_tree(ax, tree)
+    for name, region in props.items():
+        plot_box(ax, region, facecolor="green")
+        label(ax, region.center(), name)
+    for o in obsts:
+        plot_box(ax, o, facecolor="red")
+    if cur is not None:
+        plot_path(ax, cur)
+    plt.show()
