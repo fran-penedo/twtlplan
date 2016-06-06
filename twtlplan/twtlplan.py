@@ -23,8 +23,11 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     _, dfa = translate(spec)
     propmap = dfa.props
     tree = Tree(x_init, 0, dfa.init[0])
+    # cur holds the last node in the current candidate path
     cur = None
+    # phis contain the ASTs corresponding to each concatenation operand
     phis = get_cat_operands(dfa.tree)
+    # holds the temp relaxations of each cat operand in cur path
     taus = [np.infty for phi in phis]
     its = 0
 
@@ -64,15 +67,14 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
                                x_new, d)
                 candidate = rewire(ts_next, t_new, region, obstacles,
                                    dfa, phis, taus, props, propmap)
-                if candidate is not None:
-                    cur = candidate
-                    util.plot_casestudy(region, props, obstacles, tree, cur)
-            else:
-                cur = candidate
-                util.plot_casestudy(region, props, obstacles, tree, cur)
+
+            cur = update_cur(cur, candidate)
 
     return cur
 
+# Rewires the ts_next nodes through t_new if it has less cost. Propagates any
+# cost or state changes to children. Returns the best new candidate path if any
+# have been discovered or None otherwise
 def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
     cur = None
     for t_next in ts_next:
@@ -86,12 +88,21 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
             # Update cost and states of children and check if they've become
             # better solutions
             candidate = update_info(t_next, dfa, phis, taus, props, propmap)
-            if candidate is not None:
-                cur = candidate
+            cur = update_cur(cur, candidate)
 
     return cur
 
 
+# Returns candidate if it is not None, else returns cur
+def update_cur(cur, candidate):
+    if candidate is not None:
+        util.plot_casestudy(region, props, obstacles, tree, cur)
+        return candidate
+    else:
+        return cur
+
+# Updates cost and states of t's children. Returns the best new candidate path
+# if any is discovered or None otherwise
 def update_info(t, dfa, phis, taus, props, propmap):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
@@ -103,6 +114,8 @@ def update_info(t, dfa, phis, taus, props, propmap):
 
     return cur
 
+# Returns t if it corresponds to a final state and is a better candidate path
+# than the current one and updates the taus vector. Otherwise, returns None
 def handle_final(t, dfa, phis, taus):
     # Check if t is final and has better cost than current best
     if t.state in final(phis[-1]) and t.cost < np.sum(taus):

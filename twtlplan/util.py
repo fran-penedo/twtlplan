@@ -7,7 +7,31 @@ import logging
 logger = logging.getLogger('TWTLPLAN')
 
 class Tree(object):
+    """A recursive tree structure to store the exploration tree in twtlplan
+
+    Attributes:
+        children : list(Tree)
+            Children of the node
+        node : ndarray
+            Workspace point associated with this node
+        cost : numeric
+            Cost of the node
+        state : int
+            State of the DFA associated with this node
+        parent : Tree
+            Parent of the node
+    """
     def __init__(self, node=None, cost=np.infty, state=None):
+        """Constructs a Tree node
+
+        Parameters:
+            node : ndarray, optional
+                Workspace point associated with this node
+            cost : numeric, optional
+                Cost of the node
+            state : int, optional
+                State of the DFA associated with this node
+        """
         self.children = []
         self.node = node
         self.cost = cost
@@ -15,26 +39,39 @@ class Tree(object):
         self.parent = None
 
     def add_child(self, x):
+        """Adds the Tree x as a child"""
         self.children.append(x)
         x.parent = self
 
     def add_children(self, xs):
+        """Adds the list of Tree xs as children"""
         for x in xs:
             self.add_child(x)
 
     def rem_child(self, x):
+        """Removes the Tree x as a child"""
         self.children.remove(x)
         x.parent = None
 
     def nodes(self):
-        return [self.node] + [n for nodes in [c.nodes() for c in self.children]
-                              for n in nodes]
+        """Returns a list of the nodes of the tree"""
+        # return [self.node] + [n for nodes in [c.nodes() for c in self.children]
+        #                       for n in nodes]
+        return traverse(lambda x: x.node)
 
     def flat(self):
-        return [self] + [n for nodes in [c.flat() for c in self.children]
-                              for n in nodes]
+        """Returns the tree in a flat list"""
+        # return [self] + [n for nodes in [c.flat() for c in self.children]
+        #                       for n in nodes]
+        return traverse(lambda x: x)
+
+    def traverse(self, f):
+        """Returns the tree mapped through f : Tree -> a, as a flat list"""
+        return [f(self)] + [n for nodes in [c.traverse(f) for c in self.children]
+                            for n in nodes]
 
     def make_root(self):
+        """Makes this node the root of the tree"""
         if self.parent is not None:
             self.parent.make_root()
             self.parent.rem_child(self)
@@ -42,6 +79,7 @@ class Tree(object):
             self.parent = None
 
     def find(self, x):
+        """Returns the Tree with attribute node = x or None if none exists"""
         if all(self.node == x):
             return self
         for c in self.children:
@@ -51,7 +89,8 @@ class Tree(object):
         return None
 
     def copy(self):
-        t = Tree(self.node)
+        """Shallow copy of the tree"""
+        t = Tree(self.node, self.cost, self.state)
         t.add_children(c.copy() for c in self.children)
         return t
 
