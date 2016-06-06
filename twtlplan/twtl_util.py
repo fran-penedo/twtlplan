@@ -74,11 +74,11 @@ def forward_inputsyms(state, dfa):
     """Computes the set of symbols that jump forward from a state in the dfa"""
     s = set()
     for n, d in dfa.g[state].items():
-        # if d['label'] != '(else)': # FIXME more complicated than this, not
+        if d['label'] != '(else)': # FIXME more complicated than this, not
         # sure how to do this
         # @CRISTI: HALP!
-        symbits = reduce(operator.and_, d['input'])
-        s.add(symbits)
+            symbits = reduce(operator.and_, d['input'])
+            s.add(symbits)
 
     return s
 
