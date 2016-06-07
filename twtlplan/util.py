@@ -78,6 +78,21 @@ class Tree(object):
             self.add_child(self.parent)
             self.parent = None
 
+    def path_from_root(self):
+        path = [self]
+        cur = self.parent
+        while cur is not None:
+            path.append(cur)
+            cur = cur.parent
+        path.reverse()
+        return path
+
+    def root(self):
+        cur = self
+        while cur.parent is not None:
+            cur = cur.parent
+        return cur
+
     def find(self, x):
         """Returns the Tree with attribute node = x or None if none exists"""
         if all(self.node == x):
@@ -165,6 +180,7 @@ def steer(x_exp, x_ran, d):
 
     return x_new
 
+@multimethod(Tree, np.ndarray)
 def nearest(t, x):
     """Returns the node in the tree closest to x"""
     if len(t.children) > 0:
@@ -177,6 +193,11 @@ def nearest(t, x):
             return t
     else:
         return t
+
+@multimethod(list, np.ndarray)
+def nearest(ts, x):
+    """Returns the node in a list of tree nodes closest to x"""
+    return ts[min(enumerate(ts), key=lambda t: np.linalg.norm(x - t[1].node))[0]]
 
 def near(ts, x, d):
     """Returns the nodes in ts at distance less than d from the point x"""
@@ -294,7 +315,7 @@ def plot_path(ax, t_end):
     cur = t_end
     while cur.parent is not None:
         ax.plot([cur.node[0], cur.parent.node[0]],
-                [cur.node[1], cur.parent.node[1]], 'm-')
+                [cur.node[1], cur.parent.node[1]], 'm-', lw=2)
         cur = cur.parent
 
 

@@ -1,8 +1,10 @@
 from twtlplan.twtlplan import twtlplan
 from twtlplan.util import Box
+import twtlplan.util as util
 import numpy as np
 from unittest import skip
 
+@skip
 def twtlplan_test():
     region = Box(np.array([[0, 10], [0, 10]]))
     obstacles = [
@@ -23,3 +25,17 @@ def twtlplan_test():
 
     end = twtlplan(region, props, obstacles, x_init, spec, d)
 
+def twtlplan_test():
+    region = Box(np.array([[0, 10], [0, 10]]))
+    obstacles = []
+    A = Box(np.array([[1, 3], [1, 3]]))
+    B = Box(np.array([[7, 9], [7, 9]]))
+    props = {'A': A, 'B': B}
+
+    spec = '[H^2 A]^[0, 10] * [H^2 B]^[0, 10]'
+
+    x_init = np.array([5, 5])
+    d = 0.5
+
+    end = twtlplan(region, props, obstacles, x_init, spec, d)
+    util.plot_casestudy(region, props, obstacles, end.root(), end)
