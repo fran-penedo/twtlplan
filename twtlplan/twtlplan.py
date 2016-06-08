@@ -1,4 +1,5 @@
-from util import Tree, nearest, col_free, random_sample, steer, near
+from util import Tree, nearest, col_free, random_sample, steer, near, \
+    mincost_nodes
 import util
 from twtl_util import get_cat_operands, toalpha, successors, translate, final, \
     next_state, fromalpha, subform_states, forward_inputsyms, interval
@@ -18,7 +19,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     if samplers is None:
         samplers = [bias_sample, unif_sample]
     if p is None:
-        p = [0.2, 0.8]
+        p = [0, 1]
 
     _, dfa = translate(spec)
     propmap = dfa.props
@@ -34,7 +35,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     while np.sum(taus) > eps:
         its += 1
-        if its % 50 == 0:
+        if its % 500 == 0:
             util.plot_casestudy(region, props, obstacles, tree, cur)
 
         sampler = np.random.choice(samplers, p=p)
@@ -45,13 +46,15 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
         if col_free(t_exp.node, x_new, region, obstacles):
             # ts_near contains nodes in the same DFA state within steering
             # radius of x_new. t_exp is always in ts_near
-            # @CRISTI: check that this makes sense
             ts_near = near([a for a in tree.flat() if a.state == t_exp.state],
                            x_new, d)
             ts_near = [t for t in ts_near
                        if col_free(t.node, x_new, region, obstacles)]
             # Obtain min cost node in ts_near
-            t_min = ts_near[np.argmin([t.cost for t in ts_near])]
+            # FIXME I'm not sure if this is making any difference
+            t_min = nearest(mincost_nodes(ts_near), x_new)
+            # t_min = ts_near[np.argmin([t.cost for t in ts_near])]
+
             t_new = Tree(x_new, t_min.cost + 1,
                          next_state(t_min.state,
                                     toalpha(x_new, props, propmap), dfa))
@@ -63,7 +66,6 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
             if candidate is None:
                 # Rewire (as in RRT*) nodes in ts_near that can be connected to
                 # t_new, i.e., nodes in a successor state
-                # @CRISTI: this should be conservative but correct
                 ts_next = near([a for a in tree.flat()
                                 if a.state in successors(t_new.state, dfa)],
                                x_new, d)
@@ -72,6 +74,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
             cur = update_cur(cur, candidate)
 
+    logger.debug(taus)
     return cur
 
 # Rewires the ts_next nodes through t_new if it has less cost. Propagates any
@@ -112,20 +115,33 @@ def update_info(t, dfa, phis, taus, props, propmap):
 
     return cur
 
+def path_taus(path, phis):
+    taus = [np.infty for phi in phis]
+    last_final = 0
+    i = 0
+    for cur in path:
+        # Update temporal relaxations with the new path
+        if cur.state in final(phis[i]):
+            logger.debug("cost, final, interval: {}, {}, {}".format(
+                cur.cost, last_final, interval(phis[i])[1]
+            ))
+            taus[i] = max(cur.cost - last_final - interval(phis[i])[1], 0)
+            last_final = cur.cost
+            i += 1
+    logger.debug("Computed taus: {}:".format(taus))
+    return taus
+
+
 # Returns t if it corresponds to a final state and is a better candidate path
 # than the current one and updates the taus vector. Otherwise, returns None
 def handle_final(t, dfa, phis, taus):
     # Check if t is final and has better cost than current best
-    if t.state in final(phis[-1]) and t.cost < np.sum(taus):
-        path = t.path_from_root()
-        last_final = 0
-        for cur in path:
-            # Update temporal relaxations with the new path
-            for i, phi in enumerate(phis):
-                if cur.state in final(phi):
-                    taus[i] = max(cur.cost - last_final - interval(phi)[1], 0)
-                    last_final = cur.cost
-        return t
+    if t.state in final(phis[-1]):
+        taus_new = path_taus(t.path_from_root(), phis)
+        if np.sum(taus_new) < np.sum(taus):
+            for i in range(len(taus)):
+                taus[i] = taus_new[i]
+            return t
     else:
         # This is mostly a hack
         # FIXME
@@ -148,13 +164,8 @@ def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
 
     # Sample towards a region that appears as symbol to move forwards in the DFA
     input_syms = forward_inputsyms(st_ran, dfa)
-    logger.debug("Bias to {}".format(input_syms))
     input_regions = [fromalpha(s, props, propmap) for s in input_syms]
-    logger.debug("Input regions len: {}".format(len(input_regions)))
     bias_regions = input_regions[np.random.choice(len(input_regions))]
-    logger.debug("Bias regions")
-    for i in bias_regions:
-        logger.debug(i.constraints)
     if len(bias_regions) > 1:
         bias_region = np.random.choice(bias_regions)
     elif len(bias_regions) == 1:

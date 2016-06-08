@@ -4,6 +4,7 @@ import twtlplan.util as util
 import numpy as np
 from unittest import skip
 
+@skip
 def twtlplan_test():
     region = Box(np.array([[0, 10], [0, 10]]))
     obstacles = [
@@ -25,7 +26,6 @@ def twtlplan_test():
     end = twtlplan(region, props, obstacles, x_init, spec, d)
     util.plot_casestudy(region, props, obstacles, end.root(), end)
 
-@skip
 def twtlplan2_test():
     region = Box(np.array([[0, 10], [0, 10]]))
     obstacles = []
@@ -36,7 +36,7 @@ def twtlplan2_test():
     spec = '[H^2 A]^[0, 10] * [H^2 B]^[0, 10]'
 
     x_init = np.array([5, 5])
-    d = 0.5
+    d = 1
 
     end = twtlplan(region, props, obstacles, x_init, spec, d)
     util.plot_casestudy(region, props, obstacles, end.root(), end)

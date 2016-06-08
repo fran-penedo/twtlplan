@@ -201,6 +201,10 @@ def nearest(ts, x):
     """Returns the node in a list of tree nodes closest to x"""
     return ts[min(enumerate(ts), key=lambda t: np.linalg.norm(x - t[1].node))[0]]
 
+def mincost_nodes(ts):
+    mincost = min([t.cost for t in ts])
+    return [t for t in ts if t.cost == mincost]
+
 def near(ts, x, d):
     """Returns the nodes in ts at distance less than d from the point x"""
     return [t for t in ts if np.linalg.norm(x - t.node) <= d + 0.001]
@@ -306,7 +310,7 @@ def plot_tree_lines(ax, t, scalarmap):
         ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
                 color=scalarmap.to_rgba(t.state))
         plot_tree_lines(ax, c, scalarmap)
-    label(ax, t.node + [0.1, 0], str(t.cost))
+    # label(ax, t.node + [0.1, 0], str(t.cost))
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints
