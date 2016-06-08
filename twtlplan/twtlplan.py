@@ -88,6 +88,8 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
             t_next.parent.rem_child(t_next)
             t_new.add_child(t_next)
             t_next.cost = t_new.cost + 1
+            t_next.state = next_state(t_new.state,
+                                      toalpha(t_next.node, props, propmap), dfa)
             # Update cost and states of children and check if they've become
             # better solutions
             candidate = update_info(t_next, dfa, phis, taus, props, propmap)
@@ -109,6 +111,7 @@ def update_info(t, dfa, phis, taus, props, propmap):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
         c.cost = t.cost + 1
+        c.state = next_state(t.state, toalpha(c.node, props, propmap), dfa)
         candidate = update_info(c, dfa, phis, taus, props, propmap)
         if candidate is not None:
             cur = candidate
