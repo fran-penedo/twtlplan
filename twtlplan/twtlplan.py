@@ -18,7 +18,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     if samplers is None:
         samplers = [bias_sample, unif_sample]
     if p is None:
-        p = [0, 1]
+        p = [0.2, 0.8]
 
     _, dfa = translate(spec)
     propmap = dfa.props
@@ -123,38 +123,39 @@ def handle_final(t, dfa, phis, taus):
             # Update temporal relaxations with the new path
             for i, phi in enumerate(phis):
                 if cur.state in final(phi):
-                    # @CRISTI: make sure this is correct
-                    # FIXME this assumes costs are specific for each formula,
-                    # which is not the case. We can't do that since there would
-                    # be no way to rewire to final states (since they're also
-                    # initial and thus would have cost 0)
-                    taus[i] = cur.cost - last_final - interval(phi)[1]
+                    taus[i] = max(cur.cost - last_final - interval(phi)[1], 0)
                     last_final = cur.cost
         return t
     else:
         # This is mostly a hack
+        # FIXME
         for i, phi in enumerate(phis[:-1]):
             if t.state in final(phi) and taus[i] == np.infty:
                 taus[i] = t.cost - interval(phi)[1]
         return None
 
-def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
+def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
+                props, propmap):
     # Bias towards formula with worst temporal relaxation for current solution
     phi = phis[np.argmax(taus)]
     # Select a random node in a state that corresponds to the formula
-    phi_states = subform_states(phi, dfa)
-    ts = [x for x in t.flat() if x.state in phi_states]
-    if len(ts) == 0:
+    st_ran = np.random.choice(list(subform_states(phi, dfa)))
+
+    if len(nodes_by_state.get(st_ran, [])) == 0:
         # If no nodes correspond to the formula (early), sample uniformly
-        return unif_sample(region, obstacles, t, phis, taus, dfa, props, propmap)
-    t_exp = np.random.choice(ts)
+        return unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
+                           props, propmap)
 
     # Sample towards a region that appears as symbol to move forwards in the DFA
-    input_syms = forward_inputsyms(t_exp.state, dfa)
+    input_syms = forward_inputsyms(st_ran, dfa)
+    logger.debug("Bias to {}".format(input_syms))
     input_regions = [fromalpha(s, props, propmap) for s in input_syms]
-    bias_regions = np.random.choice(input_regions)
+    logger.debug("Input regions len: {}".format(len(input_regions)))
+    bias_regions = input_regions[np.random.choice(len(input_regions))]
+    logger.debug("Bias regions")
+    for i in bias_regions:
+        logger.debug(i.constraints)
     if len(bias_regions) > 1:
-        # FIXME we probably want to sample in the intersection instead
         bias_region = np.random.choice(bias_regions)
     elif len(bias_regions) == 1:
         bias_region = bias_regions[0]
@@ -163,6 +164,7 @@ def bias_sample(region, obstacles, t, phis, taus, dfa, props, propmap):
         bias_region = region
 
     x_ran = random_sample(bias_region)
+    t_exp = nearest(nodes_by_state[st_ran], x_ran)
 
     return t_exp, x_ran
 

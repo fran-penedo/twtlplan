@@ -3,6 +3,8 @@ from multimethods import multimethod
 import cddwrap as cdd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 import logging
 logger = logging.getLogger('TWTLPLAN')
 
@@ -289,15 +291,22 @@ def contains(s, p):
 
 
 def plot_tree(ax, t):
-    nodes = np.array(t.nodes())
-    ax.plot(nodes[:,0], nodes[:,1], 'bo')
-    plot_tree_lines(ax, t)
+    ts = t.flat()
+    nodes = np.array([[n.node[0], n.node[1], n.state] for n in ts])
+    cmap = plt.get_cmap("cool")
+    ax.scatter(nodes[:,0], nodes[:,1], c=nodes[:,2], s=50,
+               cmap=cmap)
+    cnorm = colors.Normalize()
+    cnorm.autoscale(nodes[:,2])
+    scalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
+    plot_tree_lines(ax, t, scalarmap)
 
-def plot_tree_lines(ax, t):
+def plot_tree_lines(ax, t, scalarmap):
     for c in t.children:
-        ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], 'b-')
-        plot_tree_lines(ax, c)
-    label(ax, t.node + [0.1, 0], str(t.state))
+        ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
+                color=scalarmap.to_rgba(t.state))
+        plot_tree_lines(ax, c, scalarmap)
+    label(ax, t.node + [0.1, 0], str(t.cost))
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints

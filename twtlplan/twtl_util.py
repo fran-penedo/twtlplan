@@ -74,16 +74,17 @@ def forward_inputsyms(state, dfa):
     """Computes the set of symbols that jump forward from a state in the dfa"""
     s = set()
     for n, d in dfa.g[state].items():
-        if d['label'] != '(else)': # FIXME more complicated than this, not
-        # sure how to do this
-        # @CRISTI: HALP!
+        if d['label'] != '(else)':
             symbits = reduce(operator.and_, d['input'])
             s.add(symbits)
 
     return s
 
 def subform_states(f, dfa):
-    """Computes the set of states corresponding to a subformula in the dfa"""
+    """Computes the set of states corresponding to a subformula in the dfa
+
+    Final states are not included
+    """
     final_states = final(f)
     v = set()
     s = set(initial(f))
