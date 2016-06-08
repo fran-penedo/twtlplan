@@ -19,7 +19,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     if samplers is None:
         samplers = [bias_sample, unif_sample]
     if p is None:
-        p = [0, 1]
+        p = [0.5, 0.5]
 
     _, dfa = translate(spec)
     propmap = dfa.props
@@ -174,7 +174,9 @@ def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
         # FIXME this shouldn't happen after fixing forward_inputsyms
         bias_region = region
 
-    x_ran = random_sample(bias_region)
+    # x_ran = random_sample(bias_region)
+    x_ran = random_sample(region)
+    # t_exp = np.random.choice(nodes_by_state[st_ran])
     t_exp = nearest(nodes_by_state[st_ran], x_ran)
 
     return t_exp, x_ran
