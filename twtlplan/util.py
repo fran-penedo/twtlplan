@@ -310,7 +310,7 @@ def plot_tree_lines(ax, t, scalarmap):
         ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
                 color=scalarmap.to_rgba(t.state))
         plot_tree_lines(ax, c, scalarmap)
-    # label(ax, t.node + [0.1, 0], str(t.cost))
+    label(ax, t.node + [0.1, 0], str(t.cost))
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints

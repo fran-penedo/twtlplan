@@ -35,7 +35,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     while np.sum(taus) > eps:
         its += 1
-        if its % 500 == 0:
+        if its % 50 == 0:
             util.plot_casestudy(region, props, obstacles, tree, cur)
 
         sampler = np.random.choice(samplers, p=p)
@@ -55,9 +55,9 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
             t_min = nearest(mincost_nodes(ts_near), x_new)
             # t_min = ts_near[np.argmin([t.cost for t in ts_near])]
 
-            t_new = Tree(x_new, t_min.cost + 1,
-                         next_state(t_min.state,
-                                    toalpha(x_new, props, propmap), dfa))
+            s_new = next_state(t_min.state, toalpha(x_new, props, propmap), dfa)
+            t_new = Tree(x_new,
+                next_cost(t_min.cost, t_min.state, s_new, phis), s_new)
             t_min.add_child(t_new)
             nodes_by_state.setdefault(t_new.state, []).append(t_new)
 
@@ -83,13 +83,15 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
     cur = None
     for t_next in ts_next:
-        if t_next.cost > t_new.cost + 1 and \
+        s_next = next_state(t_new.state,
+                            toalpha(t_next.node, props, propmap), dfa)
+        c_next = next_cost(t_new.cost, t_new.state, s_next, phis)
+        if t_next.cost > c_next and \
                 col_free(t_new.node, t_next.node, region, obstacles):
             t_next.parent.rem_child(t_next)
             t_new.add_child(t_next)
-            t_next.cost = t_new.cost + 1
-            t_next.state = next_state(t_new.state,
-                                      toalpha(t_next.node, props, propmap), dfa)
+            t_next.cost = c_next
+            t_next.state = s_next
             # Update cost and states of children and check if they've become
             # better solutions
             candidate = update_info(t_next, dfa, phis, taus, props, propmap)
@@ -110,8 +112,8 @@ def update_cur(cur, candidate):
 def update_info(t, dfa, phis, taus, props, propmap):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
-        c.cost = t.cost + 1
         c.state = next_state(t.state, toalpha(c.node, props, propmap), dfa)
+        c.cost = next_cost(t.cost, t.state, c.state, phis)
         candidate = update_info(c, dfa, phis, taus, props, propmap)
         if candidate is not None:
             cur = candidate
@@ -120,16 +122,16 @@ def update_info(t, dfa, phis, taus, props, propmap):
 
 def path_taus(path, phis):
     taus = [np.infty for phi in phis]
-    last_final = 0
+    last_tau = 0
     i = 0
     for cur in path:
         # Update temporal relaxations with the new path
         if cur.state in final(phis[i]):
-            logger.debug("cost, final, interval: {}, {}, {}".format(
-                cur.cost, last_final, interval(phis[i])[1]
+            logger.debug("cost, last_tau, interval: {}, {}, {}".format(
+                cur.cost, last_tau, interval(phis[i])[1]
             ))
-            taus[i] = max(cur.cost - last_final - interval(phis[i])[1], 0)
-            last_final = cur.cost
+            taus[i] = max(cur.cost - last_tau, 0)
+            last_tau = taus[i]
             i += 1
     logger.debug("Computed taus: {}:".format(taus))
     return taus
@@ -192,4 +194,10 @@ def unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
     t_exp = nearest(nodes_by_state[st_ran], x_ran)
 
     return t_exp, x_ran
+
+def next_cost(cur, s_cur, s_next, phis):
+    for phi in phis:
+        if s_cur < s_next and s_cur not in final(phi) and s_next in final(phi):
+            return max(cur + 1 - interval(phi)[1], 0)
+    return cur + 1
 
