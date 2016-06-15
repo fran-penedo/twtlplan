@@ -35,7 +35,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     while np.sum(taus) > eps:
         its += 1
-        if its % 50 == 0:
+        if its % 500 == 0:
             util.plot_casestudy(region, props, obstacles, tree, cur)
 
         sampler = np.random.choice(samplers, p=p)

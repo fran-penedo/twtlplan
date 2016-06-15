@@ -17,10 +17,10 @@ def twtlplan_test():
     C = Box(np.array([[9, 10], [9, 10]]))
     props = {'A': A, 'B': B, 'C':C}
 
-    spec = '[H^2 A]^[0, 10] * [H^2 B]^[0, 10] * [H^2 C]^[0, 10]'
+    spec = '[H^2 A]^[0, 20] * [H^2 B]^[0, 20] * [H^2 C]^[0, 20]'
 
     x_init = np.array([1, 3])
-    d = 1
+    d = 0.5
 
     end = twtlplan(region, props, obstacles, x_init, spec, d)
     util.plot_casestudy(region, props, obstacles, end.root(), end)
