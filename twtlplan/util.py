@@ -348,7 +348,7 @@ def plot_casestudy(cons, props, obsts, tree, cur, nstates):
         plot_tree(ax, tree, nstates)
     for name, region in props.items():
         plot_box(ax, region, facecolor="green")
-        label(ax, region.center(), name, 14)
+        label(ax, region.center(), name, 20)
     for o in obsts:
         plot_box(ax, o, facecolor="red")
     if cur is not None:
