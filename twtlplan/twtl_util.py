@@ -1,5 +1,7 @@
 import sys
-sys.path.insert(0, 'lib/twtl')
+import os
+sys.path.insert(0, os.getcwd() + '/lib/twtl')
+sys.path.insert(0, os.getcwd() + '/lib')
 
 import twtl.twtl as twtl
 from twtl.dfa import Op, DFAType
