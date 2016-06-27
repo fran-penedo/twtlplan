@@ -310,7 +310,7 @@ def plot_tree_lines(ax, t, scalarmap):
         ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
                 color=scalarmap.to_rgba(t.state))
         plot_tree_lines(ax, c, scalarmap)
-    label(ax, t.node + [0.1, 0], str(t.cost))
+    label(ax, t.node + [0.1, 0], str(t.cost), 7)
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints
@@ -335,8 +335,8 @@ def plot_path(ax, t_end):
 def centroid(vs):
     return np.average(vs, axis=0)
 
-def label(ax, center, text):
-    ax.text(center[0], center[1], text, ha="center", va="center")
+def label(ax, center, text, size):
+    ax.text(center[0], center[1], text, ha="center", va="center", size=size)
 
 def plot_casestudy(cons, props, obsts, tree, cur):
     fig = plt.figure()
@@ -345,7 +345,7 @@ def plot_casestudy(cons, props, obsts, tree, cur):
     plot_tree(ax, tree)
     for name, region in props.items():
         plot_box(ax, region, facecolor="green")
-        label(ax, region.center(), name)
+        label(ax, region.center(), name, 14)
     for o in obsts:
         plot_box(ax, o, facecolor="red")
     if cur is not None:
