@@ -140,3 +140,6 @@ def fromalpha(x, props, propmap):
         m <<= 1
 
     return s
+
+def nstates(dfa):
+    return list(dfa.final)[0]

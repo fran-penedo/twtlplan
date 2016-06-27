@@ -294,14 +294,14 @@ def contains(s, p):
     return s.aspoly().contains(p)
 
 
-def plot_tree(ax, t):
+def plot_tree(ax, t, nstates):
     ts = t.flat()
     nodes = np.array([[n.node[0], n.node[1], n.state] for n in ts])
     cmap = plt.get_cmap("cool")
     ax.scatter(nodes[:,0], nodes[:,1], c=nodes[:,2], s=50,
                cmap=cmap)
-    cnorm = colors.Normalize()
-    cnorm.autoscale(nodes[:,2])
+    cnorm = colors.Normalize(0, nstates)
+    # cnorm.autoscale(nodes[:,2])
     scalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
     plot_tree_lines(ax, t, scalarmap)
 
@@ -310,7 +310,7 @@ def plot_tree_lines(ax, t, scalarmap):
         ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
                 color=scalarmap.to_rgba(t.state))
         plot_tree_lines(ax, c, scalarmap)
-    label(ax, t.node + [0.1, 0], str(t.cost), 7)
+    # label(ax, t.node + [0.1, 0], str(t.cost), 7)
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints
@@ -328,7 +328,7 @@ def plot_path(ax, t_end):
     cur = t_end
     while cur.parent is not None:
         ax.plot([cur.node[0], cur.parent.node[0]],
-                [cur.node[1], cur.parent.node[1]], 'm-', lw=2)
+                [cur.node[1], cur.parent.node[1]], 'k-', lw=3)
         cur = cur.parent
 
 
@@ -338,11 +338,14 @@ def centroid(vs):
 def label(ax, center, text, size):
     ax.text(center[0], center[1], text, ha="center", va="center", size=size)
 
-def plot_casestudy(cons, props, obsts, tree, cur):
+def plot_casestudy(cons, props, obsts, tree, cur, nstates):
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    ax.set_xlim(cons.constraints[0])
+    ax.set_ylim(cons.constraints[1])
     plot_box(ax, cons, facecolor="white")
-    plot_tree(ax, tree)
+    if tree is not None:
+        plot_tree(ax, tree, nstates)
     for name, region in props.items():
         plot_box(ax, region, facecolor="green")
         label(ax, region.center(), name, 14)

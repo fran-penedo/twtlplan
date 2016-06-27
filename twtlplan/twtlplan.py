@@ -2,7 +2,7 @@ from util import Tree, nearest, col_free, random_sample, steer, near, \
     mincost_nodes
 import util
 from twtl_util import get_cat_operands, toalpha, successors, translate, final, \
-    next_state, fromalpha, subform_states, forward_inputsyms, interval
+    next_state, fromalpha, subform_states, forward_inputsyms, interval, nstates
 import numpy as np
 import logging
 logger = logging.getLogger('TWTLPLAN')
@@ -36,7 +36,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     while np.sum(taus) > eps:
         its += 1
         if its % 500 == 0:
-            util.plot_casestudy(region, props, obstacles, tree, cur)
+            util.plot_casestudy(region, props, obstacles, tree, cur, nstates(dfa))
 
         sampler = np.random.choice(samplers, p=p)
         # notation: t_i.node = x_i
@@ -67,7 +67,8 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
                 # Rewire (as in RRT*) nodes in ts_near that can be connected to
                 # t_new, i.e., nodes in a successor state
                 ts_next = near([a for a in tree.flat()
-                                if a.state in successors(t_new.state, dfa)],
+                                if a.state in successors(t_new.state, dfa) and
+                                a not in t_new.path_from_root()],
                                x_new, d)
                 candidate = rewire(ts_next, t_new, region, obstacles,
                                    dfa, phis, taus, props, propmap)
