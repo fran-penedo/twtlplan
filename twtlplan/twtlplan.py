@@ -15,7 +15,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
-             samplers=None, p=None):
+             samplers=None, p=None, draw_its=500):
     if samplers is None:
         samplers = [bias_sample, unif_sample]
     if p is None:
@@ -34,8 +34,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     its = 0
 
     while np.sum(taus) > eps:
-        its += 1
-        if its % 500 == 0:
+        if draw_its > 0 and its % draw_its == 0:
             util.plot_casestudy(region, props, obstacles, tree, cur, nstates(dfa))
 
         sampler = np.random.choice(samplers, p=p)
@@ -74,6 +73,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
                                    dfa, phis, taus, props, propmap)
 
             cur = update_cur(cur, candidate)
+        its += 1
 
     logger.debug(taus)
     return cur
