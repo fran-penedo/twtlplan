@@ -26,7 +26,8 @@ def twtlplan_test():
     end = twtlplan(region, props, obstacles, x_init, spec, d)
     util.plot_casestudy(region, props, obstacles, end.root(), end)
 
-def twtlplan2_test():
+@skip
+def twtlplan_simple_test():
     region = Box(np.array([[0, 10], [0, 10]]))
     obstacles = []
     A = Box(np.array([[1, 3], [1, 3]]))
@@ -34,6 +35,23 @@ def twtlplan2_test():
     props = {'A': A, 'B': B}
 
     spec = '[H^2 A]^[5, 10] * [H^2 B]^[0, 10]'
+
+    x_init = np.array([5, 5])
+    d = 1
+
+    end = twtlplan(region, props, obstacles, x_init, spec, d)
+    util.plot_casestudy(region, props, obstacles, end.root(), end,
+                        max([n.state for n in end.root().flat()]))
+
+def twtlplan_disjunction_test():
+    region = Box(np.array([[0, 10], [0, 10]]))
+    obstacles = []
+    A = Box(np.array([[1, 3], [3, 5]]))
+    B = Box(np.array([[3, 5], [1, 3]]))
+    C = Box(np.array([[7, 9], [7, 9]]))
+    props = {'A': A, 'B': B, 'C': C}
+
+    spec = '([H^2 A]^[5, 10] | [H^2 B ]^[5, 10]) * [H^2 C]^[0, 10]'
 
     x_init = np.array([5, 5])
     d = 1

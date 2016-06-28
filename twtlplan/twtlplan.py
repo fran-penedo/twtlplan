@@ -23,7 +23,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     _, dfa = translate(spec)
     propmap = dfa.props
-    tree = Tree(x_init, 0, dfa.init.keys()[0])
+    tree = Tree(x_init, 0, dfa.init.keys()[0], toalpha(x_init, props, propmap))
     nodes_by_state = {tree.state : [tree]}
     # cur holds the last node in the current candidate path
     cur = None
@@ -54,9 +54,11 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
             t_min = nearest(mincost_nodes(ts_near), x_new)
             # t_min = ts_near[np.argmin([t.cost for t in ts_near])]
 
-            s_new = next_state(t_min.state, toalpha(x_new, props, propmap), dfa)
-            t_new = Tree(x_new,
-                next_cost(t_min.cost, t_min.state, s_new, phis), s_new)
+            sym_new = toalpha(x_new, props, propmap)
+            s_new = next_state(t_min.state, sym_new, dfa)
+            t_new = Tree(
+                x_new, next_cost(t_min.cost, t_min.state, sym_new, s_new, phis),
+                s_new, sym_new)
             t_min.add_child(t_new)
             nodes_by_state.setdefault(t_new.state, []).append(t_new)
 
@@ -84,9 +86,8 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
     cur = None
     for t_next in ts_next:
-        s_next = next_state(t_new.state,
-                            toalpha(t_next.node, props, propmap), dfa)
-        c_next = next_cost(t_new.cost, t_new.state, s_next, phis)
+        s_next = next_state(t_new.state, t_next.sym, dfa)
+        c_next = next_cost(t_new.cost, t_new.state, t_new.sym, s_next, phis)
         if t_next.cost > c_next and \
                 col_free(t_new.node, t_next.node, region, obstacles):
             t_next.parent.rem_child(t_next)
@@ -95,7 +96,7 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
             t_next.state = s_next
             # Update cost and states of children and check if they've become
             # better solutions
-            candidate = update_info(t_next, dfa, phis, taus, props, propmap)
+            candidate = update_info(t_next, dfa, phis, taus)
             cur = update_cur(cur, candidate)
 
     return cur
@@ -110,12 +111,12 @@ def update_cur(cur, candidate):
 
 # Updates cost and states of t's children. Returns the best new candidate path
 # if any is discovered or None otherwise
-def update_info(t, dfa, phis, taus, props, propmap):
+def update_info(t, dfa, phis, taus):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
-        c.state = next_state(t.state, toalpha(c.node, props, propmap), dfa)
-        c.cost = next_cost(t.cost, t.state, c.state, phis)
-        candidate = update_info(c, dfa, phis, taus, props, propmap)
+        c.state = next_state(t.state, c.sym, dfa)
+        c.cost = next_cost(t.cost, t.state, c.sym, c.state, phis)
+        candidate = update_info(c, dfa, phis, taus)
         if candidate is not None:
             cur = candidate
 
@@ -128,13 +129,12 @@ def path_taus(path, phis):
     for cur in path:
         # Update temporal relaxations with the new path
         if cur.state in final(phis[i]):
-            logger.debug("cost, last_tau, interval: {}, {}, {}".format(
-                cur.cost, last_tau, interval(phis[i])[1]
-            ))
+            # logger.debug("cost, last_tau: {}, {}".format(cur.cost, last_tau))
             taus[i] = max(cur.cost - last_tau, 0)
             last_tau = taus[i]
             i += 1
-    logger.debug("Computed taus: {}:".format(taus))
+    if sum(taus) < np.infty:
+        logger.debug("Computed taus: {}:".format(taus))
     return taus
 
 
@@ -149,11 +149,10 @@ def handle_final(t, dfa, phis, taus):
                 taus[i] = taus_new[i]
             return t
     else:
-        # This is mostly a hack
-        # FIXME
-        for i, phi in enumerate(phis[:-1]):
-            if t.state in final(phi) and taus[i] == np.infty:
-                taus[i] = t.cost - interval(phi)[1]
+        if any(tau == np.infty for tau in taus):
+            taus_new = path_taus(t.path_from_root(), phis)
+            for i in range(len(taus)):
+                taus[i] = taus_new[i]
         return None
 
 def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
@@ -196,9 +195,9 @@ def unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
 
     return t_exp, x_ran
 
-def next_cost(cur, s_cur, s_next, phis):
+def next_cost(cur, s_cur, symbol, s_next, phis):
     for phi in phis:
         if s_cur < s_next and s_cur not in final(phi) and s_next in final(phi):
-            return max(cur + 1 - interval(phi)[1], 0)
+            return max(cur + 1 - interval(phi, s_cur, symbol)[1], 0)
     return cur + 1
 

@@ -23,14 +23,15 @@ def translate(phi):
 
 def iscatform(ast):
     """Checks if a formula with the given AST is in concatenation form"""
+    allowed = set([Op.event, Op.union])
     if ast.operation != Op.cat:
         return False
     if ast.left.operation == Op.cat:
         isleft = iscatform(ast.left)
     else:
-        isleft = ast.left.operation == Op.event
+        isleft = ast.left.operation in allowed
 
-    return ast.right.operation == Op.event and isleft
+    return ast.right.operation in allowed and isleft
 
 def get_cat_operands(ast):
     """Returns the nodes of the AST for each concatenation operand"""
@@ -52,10 +53,24 @@ def initial(ast):
     """Returns the initial state for the annotated ast"""
     return ast.init
 
-def interval(ast):
+def interval(ast, state, sym):
     """Returns a pair with the within interval for ast"""
     if ast.operation == Op.event:
         return ast.low, ast.high
+    elif ast.operation == Op.union:
+        if state in ast.choices:
+            ch = ast.choices[state]
+            if sym in ch.both:
+                ll, lh = interval(ast.left, state, sym)
+                rl, rh = interval(ast.right, state, sym)
+                return max(ll, rl), min(lh, rh)
+            elif sym in ch.left:
+                return interval(ast.left, state, sym)
+            else:
+                return interval(ast.right, state, sym)
+        else:
+            raise Exception("Pair {} doesn't lead to a final state".format(
+                (state, sym)))
     else:
         raise Exception("Cannot compute interval of {} formula".format(
             Op.str(ast.operation)))

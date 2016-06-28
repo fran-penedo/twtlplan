@@ -23,7 +23,7 @@ class Tree(object):
         parent : Tree
             Parent of the node
     """
-    def __init__(self, node=None, cost=np.infty, state=None):
+    def __init__(self, node=None, cost=np.infty, state=None, sym=None):
         """Constructs a Tree node
 
         Parameters:
@@ -38,6 +38,7 @@ class Tree(object):
         self.node = node
         self.cost = cost
         self.state = state
+        self.sym = sym
         self.parent = None
 
     def add_child(self, x):
