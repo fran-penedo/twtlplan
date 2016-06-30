@@ -295,6 +295,16 @@ def contains(s, p):
     return s.aspoly().contains(p)
 
 
+class PlotOpts(object):
+    def __init__(self, dic):
+        copy = dic.copy()
+        self.draw_its = copy.pop('draw_its', 500)
+        self.draw_first_path = copy.pop('draw_first_path', False)
+        self.plot_file_prefix = copy.pop('plot_file_prefix', None)
+
+        if len(copy) > 0:
+            logger.warning('Unexpected plot options: {}'.format(copy.keys()))
+
 def plot_tree(ax, t, nstates):
     ts = t.flat()
     nodes = np.array([[n.node[0], n.node[1], n.state] for n in ts])
@@ -339,7 +349,12 @@ def centroid(vs):
 def label(ax, center, text, size):
     ax.text(center[0], center[1], text, ha="center", va="center", size=size)
 
-def plot_casestudy(cons, props, obsts, tree, cur, nstates):
+
+_figcounter = 0
+
+def plot_casestudy(cons, props, obsts, tree, cur, nstates, prefix=None):
+    global _figcounter
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_xlim(cons.constraints[0])
@@ -354,4 +369,10 @@ def plot_casestudy(cons, props, obsts, tree, cur, nstates):
         plot_box(ax, o, facecolor="red")
     if cur is not None:
         plot_path(ax, cur)
-    plt.show()
+    if prefix is not None:
+        fig.savefig(prefix + str(_figcounter) + '.svg')
+        plt.close(fig)
+        plt.show()
+        _figcounter += 1
+    else:
+        plt.show()

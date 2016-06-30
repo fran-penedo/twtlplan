@@ -5,13 +5,19 @@ import argparse
 from timeit import default_timer as timer
 import importlib
 
-def run_cs_draw(m, only_first, draw_tree):
+def run_cs_draw(m, args):
+    start = timer()
     end = twtlplan(m.region, m.props, m.obstacles, m.x_init, m.spec, m.d,
-                   draw_first_path=only_first,
-                   draw_its=500 if not only_first else 0)
+                   draw_first_path=args.only_first,
+                   draw_its=500 if not args.only_first else 0,
+                   plot_file_prefix=args.plot_file_prefix)
+    finish = timer()
     util.plot_casestudy(m.region, m.props, m.obstacles,
-                        end.root() if draw_tree else None, end,
-                        max([n.state for n in end.root().flat()]))
+                        end.root() if args.draw_tree else None, end,
+                        max([n.state for n in end.root().flat()]),
+                        prefix=args.plot_file_prefix)
+
+    print 'Time {}'.format(finish - start)
 
 
 def run_cs_time(m):
@@ -41,6 +47,8 @@ def get_argparser():
                              help='draw the first candidate path')
     parser_draw.add_argument('--draw-tree', action='store_true', default=False,
                              help='draw the tree when plotting the final state')
+    parser_draw.add_argument('-f', '--plot-file-prefix',
+                             help='plots are saved to svg files with this prefix')
     parser_time = subparsers.add_parser(
         'time', help='Run an example a number of times a show execution times')
     parser.add_argument('module', help='module containing the case study')
@@ -52,7 +60,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     module = importlib.import_module(args.module)
     if args.action == 'draw':
-        run_cs_draw(module, args.only_first, args.draw_tree)
+        run_cs_draw(module, args)
     elif args.action == 'time':
         run_cs_time(module)
     else:
