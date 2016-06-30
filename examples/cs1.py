@@ -1,9 +1,5 @@
-from twtlplan.twtlplan import twtlplan
 from twtlplan.util import Box
-import twtlplan.util as util
 import numpy as np
-import sys
-from timeit import default_timer as timer
 
 region = Box(np.array([[0, 10], [0, 10]]))
 obstacles = [
@@ -21,37 +17,3 @@ spec = '[H^2 A]^[3, 10] * [H^3 B]^[0, 15] * [H^2 C]^[0, 15]'
 
 x_init = np.array([1, 3])
 d = 0.75
-
-
-def run_cs1_draw():
-    end = twtlplan(region, props, obstacles, x_init, spec, d)
-    util.plot_casestudy(region, props, obstacles, end.root(), end,
-                        max([n.state for n in end.root().flat()]))
-
-
-def run_cs1_time():
-    times = []
-    its = 20
-    for i in range(its):
-        print "------ iteration {}".format(i)
-        start = timer()
-        _ = twtlplan(region, props, obstacles, x_init, spec, d, draw_its=0)
-        end = timer()
-        times.append(end - start)
-        print "- time {}".format(times[-1])
-
-    print "twtlplan times: max {0} min {1} avg {2}".format(
-        max(times), min(times), sum(times) / float(its))
-
-
-if __name__ == "__main__":
-    helpstr = "Call with --draw or --time"
-    if len(sys.argv) != 2:
-        print helpstr
-
-    if sys.argv[1] == '--draw':
-        run_cs1_draw()
-    elif sys.argv[1] == '--time':
-        run_cs1_time()
-    else:
-        print helpstr

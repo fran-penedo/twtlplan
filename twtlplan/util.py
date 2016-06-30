@@ -315,8 +315,8 @@ def plot_tree_lines(ax, t, scalarmap):
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints
-    x, y = cs[:,0]
-    w, h = cs[:,1] - cs[:,0]
+    x, y = cs[:2,0]
+    w, h = cs[:2,1] - cs[:2,0]
     ax.add_patch(patches.Rectangle((x,y), w, h, alpha=.5, **kwargs))
 
 def plot_poly(ax, poly, **kwargs):

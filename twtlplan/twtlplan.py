@@ -16,7 +16,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
-             samplers=None, p=None, draw_its=500):
+             samplers=None, p=None, draw_its=500, draw_first_path=False):
     if samplers is None:
         samplers = [bias_sample, unif_sample]
     if p is None:
@@ -33,10 +33,16 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     # holds the temp relaxations of each cat operand in cur path
     taus = [np.infty for phi in phis]
     its = 0
+    drawed = False
 
     while np.sum(taus) > eps:
         if draw_its > 0 and its % draw_its == 0:
             util.plot_casestudy(region, props, obstacles, tree, cur, nstates(dfa))
+        if draw_first_path and not drawed and cur is not None:
+            util.plot_casestudy(region, props, obstacles, None, cur, nstates(dfa))
+            drawed = True
+
+
 
         sampler = np.random.choice(samplers, p=p)
         # notation: t_i.node = x_i
