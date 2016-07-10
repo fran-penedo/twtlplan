@@ -25,11 +25,14 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
     _, dfa = translate(spec)
     propmap = dfa.props
     tree = Tree(x_init, 0, dfa.init.keys()[0], toalpha(x_init, props, propmap))
+    tree_flat = [tree]
     nodes_by_state = {tree.state : [tree]}
     # cur holds the last node in the current candidate path
     cur = None
     # phis contain the ASTs corresponding to each concatenation operand
     phis = get_cat_operands(dfa.tree)
+    phis_states = [subform_states(phi, dfa) for phi in phis]
+
     # holds the temp relaxations of each cat operand in cur path
     taus = [np.infty for phi in phis]
 
@@ -45,16 +48,18 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
             util.plot_casestudy(region, props, obstacles, None, cur,
                                 nstates(dfa), po.plot_file_prefix)
             drawed = True
+        if its % 1000 == 0:
+            logger.info("Its = {}".format(its))
 
         sampler = np.random.choice(samplers, p=p)
         # notation: t_i.node = x_i
         t_exp, x_ran = sampler(region, obstacles, nodes_by_state,
-                               phis, taus, dfa, props, propmap)
+                               phis, taus, dfa, props, propmap, phis_states)
         x_new = steer(t_exp.node, x_ran, d)
         if col_free(t_exp.node, x_new, region, obstacles):
             # ts_near contains nodes in the same DFA state within steering
             # radius of x_new. t_exp is always in ts_near
-            ts_near = near([a for a in tree.flat() if a.state == t_exp.state],
+            ts_near = near([a for a in tree_flat if a.state == t_exp.state],
                            x_new, d)
             ts_near = [t for t in ts_near
                        if col_free(t.node, x_new, region, obstacles)]
@@ -67,22 +72,24 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
             s_new = next_state(t_min.state, sym_new, dfa)
             t_new = Tree(
                 x_new,
-                next_cost(t_min.cost, t_min.state, sym_new, s_new, phis, dfa),
+                next_cost(t_min.cost, t_min.state, sym_new,
+                          s_new, phis, dfa, phis_states),
                 s_new, sym_new)
             t_min.add_child(t_new)
             nodes_by_state.setdefault(t_new.state, []).append(t_new)
+            tree_flat.append(t_new)
 
             # Check if t_new is in final state
             candidate = handle_final(t_new, dfa, phis, taus)
             if candidate is None:
                 # Rewire (as in RRT*) nodes in ts_near that can be connected to
                 # t_new, i.e., nodes in a successor state
-                ts_next = near([a for a in tree.flat()
+                ts_next = near([a for a in tree_flat
                                 if a.state in successors(t_new.state, dfa) and
                                 a not in t_new.path_from_root()],
                                x_new, d)
                 candidate = rewire(ts_next, t_new, region, obstacles,
-                                   dfa, phis, taus, props, propmap)
+                                   dfa, phis, taus, props, propmap, phis_states)
 
             cur = update_cur(cur, candidate)
         its += 1
@@ -93,11 +100,11 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 # Rewires the ts_next nodes through t_new if it has less cost. Propagates any
 # cost to children. Returns the best new candidate path if any
 # have been discovered or None otherwise
-def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
+def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap, phis_states):
     cur = None
     for t_next in ts_next:
         s_next = next_state(t_new.state, t_next.sym, dfa)
-        c_next = next_cost(t_new.cost, t_new.state, t_new.sym, s_next, phis, dfa)
+        c_next = next_cost(t_new.cost, t_new.state, t_new.sym, s_next, phis, dfa, phis_states)
         if t_next.cost > c_next and \
                 col_free(t_new.node, t_next.node, region, obstacles):
             t_next.parent.rem_child(t_next)
@@ -106,7 +113,7 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap):
             t_next.state = s_next
             # Update cost and states of children and check if they've become
             # better solutions
-            candidate = update_info(t_next, dfa, phis, taus)
+            candidate = update_info(t_next, dfa, phis, taus, phis_states)
             cur = update_cur(cur, candidate)
 
     return cur
@@ -121,12 +128,12 @@ def update_cur(cur, candidate):
 
 # Updates cost and states of t's children. Returns the best new candidate path
 # if any is discovered or None otherwise
-def update_info(t, dfa, phis, taus):
+def update_info(t, dfa, phis, taus, phis_states):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
         c.state = next_state(t.state, c.sym, dfa)
-        c.cost = next_cost(t.cost, t.state, c.sym, c.state, phis, dfa)
-        candidate = update_info(c, dfa, phis, taus)
+        c.cost = next_cost(t.cost, t.state, c.sym, c.state, phis, dfa, phis_states)
+        candidate = update_info(c, dfa, phis, taus, phis_states)
         if candidate is not None:
             cur = candidate
 
@@ -159,23 +166,26 @@ def handle_final(t, dfa, phis, taus):
                 taus[i] = taus_new[i]
             return t
     else:
-        if any(tau == np.infty for tau in taus):
+        if any([tau == np.infty for tau in taus]):
             taus_new = path_taus(t.path_from_root(), phis)
-            for i in range(len(taus)):
-                taus[i] = taus_new[i]
+            if len([t for tau in taus if tau != np.infty]) < \
+                    len([tau for tau in taus_new if tau != np.infty]):
+                logger.info("taus = {}, {}".format(taus_new, taus))
+                for i in range(len(taus)):
+                    taus[i] = taus_new[i]
         return None
 
 def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
-                props, propmap):
+                props, propmap, phis_states):
     # Bias towards formula with worst temporal relaxation for current solution
-    phi = phis[np.argmax(taus)]
+    i = np.argmax(taus)
     # Select a random node in a state that corresponds to the formula
-    st_ran = np.random.choice(list(subform_states(phi, dfa)))
+    st_ran = np.random.choice(list(phis_states[i]))
 
     if len(nodes_by_state.get(st_ran, [])) == 0:
         # If no nodes correspond to the formula (early), sample uniformly
         return unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
-                           props, propmap)
+                           props, propmap, phis_states)
 
     # Sample towards a region that appears as symbol to move forwards in the DFA
     input_syms = forward_inputsyms(st_ran, dfa)
@@ -197,7 +207,7 @@ def bias_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
     return t_exp, x_ran
 
 def unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
-                props, propmap):
+                props, propmap, phis_states):
     st_ran = np.random.choice([st for st in nodes_by_state.keys()
                                if st not in dfa.final])
     x_ran = random_sample(region)
@@ -205,9 +215,9 @@ def unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
 
     return t_exp, x_ran
 
-def next_cost(cur, s_cur, symbol, s_next, phis, dfa):
-    for phi in phis:
-        if s_cur in subform_states(phi, dfa) \
+def next_cost(cur, s_cur, symbol, s_next, phis, dfa, phis_states):
+    for i, phi in enumerate(phis):
+        if s_cur in phis_states[i] \
                 and s_cur not in final(phi) \
                 and s_next in final(phi):
             return max(cur + 1 - interval(phi, s_cur, symbol)[1], 0)
