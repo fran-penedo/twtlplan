@@ -24,7 +24,7 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
     _, dfa = translate(spec)
     propmap = dfa.props
-    tree = Tree(x_init, 0, dfa.init.keys()[0], toalpha(x_init, props, propmap))
+    tree = Tree(x_init, 0, 0, dfa.init.keys()[0], toalpha(x_init, props, propmap))
     tree_flat = [tree]
     nodes_by_state = {tree.state : [tree]}
     # cur holds the last node in the current candidate path
@@ -70,11 +70,9 @@ def twtlplan(region, props, obstacles, x_init, spec, d, eps=0,
 
             sym_new = toalpha(x_new, props, propmap)
             s_new = next_state(t_min.state, sym_new, dfa)
-            t_new = Tree(
-                x_new,
-                next_cost(t_min.cost, t_min.state, sym_new,
-                          s_new, phis, dfa, phis_states),
-                s_new, sym_new)
+            c_new, acc_new = next_cost(t_min.cost, t_min.state, sym_new,
+                          s_new, phis, dfa, phis_states, t_min.acc)
+            t_new = Tree(x_new, c_new, acc_new, s_new, sym_new)
             t_min.add_child(t_new)
             nodes_by_state.setdefault(t_new.state, []).append(t_new)
             tree_flat.append(t_new)
@@ -104,7 +102,8 @@ def rewire(ts_next, t_new, region, obstacles, dfa, phis, taus, props, propmap, p
     cur = None
     for t_next in ts_next:
         s_next = next_state(t_new.state, t_next.sym, dfa)
-        c_next = next_cost(t_new.cost, t_new.state, t_new.sym, s_next, phis, dfa, phis_states)
+        c_next, _ = next_cost(t_new.cost, t_new.state, t_new.sym,
+                              s_next, phis, dfa, phis_states, t_new.acc)
         if t_next.cost > c_next and \
                 col_free(t_new.node, t_next.node, region, obstacles):
             t_next.parent.rem_child(t_next)
@@ -132,7 +131,10 @@ def update_info(t, dfa, phis, taus, phis_states):
     cur = handle_final(t, dfa, phis, taus)
     for c in t.children:
         c.state = next_state(t.state, c.sym, dfa)
-        c.cost = next_cost(t.cost, t.state, c.sym, c.state, phis, dfa, phis_states)
+        c_new, acc_new = next_cost(t.cost, t.state, c.sym, c.state,
+                                   phis, dfa, phis_states, t.acc)
+        c.cost = c_new
+        c.acc = acc_new
         candidate = update_info(c, dfa, phis, taus, phis_states)
         if candidate is not None:
             cur = candidate
@@ -215,11 +217,12 @@ def unif_sample(region, obstacles, nodes_by_state, phis, taus, dfa,
 
     return t_exp, x_ran
 
-def next_cost(cur, s_cur, symbol, s_next, phis, dfa, phis_states):
+def next_cost(cur, s_cur, symbol, s_next, phis, dfa, phis_states, acc):
     for i, phi in enumerate(phis):
         if s_cur in phis_states[i] \
                 and s_cur not in final(phi) \
                 and s_next in final(phi):
-            return max(cur + 1 - interval(phi, s_cur, symbol)[1], 0)
-    return cur + 1
+            nacc = acc + max(cur - acc + 1 - interval(phi, s_cur, symbol)[1], 0)
+            return nacc, nacc
+    return cur + 1, acc
 

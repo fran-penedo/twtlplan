@@ -23,7 +23,7 @@ class Tree(object):
         parent : Tree
             Parent of the node
     """
-    def __init__(self, node=None, cost=np.infty, state=None, sym=None):
+    def __init__(self, node=None, cost=np.infty, acc=np.infty, state=None, sym=None):
         """Constructs a Tree node
 
         Parameters:
@@ -37,6 +37,7 @@ class Tree(object):
         self.children = []
         self.node = node
         self.cost = cost
+        self.acc = acc
         self.state = state
         self.sym = sym
         self.parent = None
@@ -321,7 +322,7 @@ def plot_tree_lines(ax, t, scalarmap):
         ax.plot([t.node[0], c.node[0]], [t.node[1], c.node[1]], '-',
                 color=scalarmap.to_rgba(t.state))
         plot_tree_lines(ax, c, scalarmap)
-    # label(ax, t.node + [0.1, 0], str(t.cost), 7)
+    label(ax, t.node + [0.1, 0], str(t.cost), 7)
 
 def plot_box(ax, box, **kwargs):
     cs = box.constraints
