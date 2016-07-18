@@ -5,6 +5,8 @@ import argparse
 from timeit import default_timer as timer
 import importlib
 
+import cProfile
+
 def run_cs_draw(m, args):
     start = timer()
     end = twtlplan(m.region, m.props, m.obstacles, m.x_init, m.spec, m.d,
@@ -20,14 +22,14 @@ def run_cs_draw(m, args):
     print 'Time {}'.format(finish - start)
 
 
-def run_cs_time(m):
+def run_cs_time(m, args):
     times = []
     its = 20
     for i in range(its):
         print "------ iteration {}".format(i)
         start = timer()
         _ = twtlplan(m.region, m.props, m.obstacles, m.x_init, m.spec, m.d,
-                     draw_its=0)
+                     p=[args.p_bias, 1 - args.p_bias], draw_its=0)
         end = timer()
         times.append(end - start)
         print "- time {}".format(times[-1])
@@ -51,6 +53,8 @@ def get_argparser():
                              help='plots are saved to svg files with this prefix')
     parser_time = subparsers.add_parser(
         'time', help='Run an example a number of times a show execution times')
+    parser_time.add_argument('-p', '--p-bias', metavar='P', type=float,
+                             default=0.5, help='bias probability')
     parser.add_argument('module', help='module containing the case study')
     return parser
 
@@ -60,8 +64,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     module = importlib.import_module(args.module)
     if args.action == 'draw':
+        # command = "run_cs_draw(module, args)"
+        # cProfile.runctx(command, globals(), locals(), filename="prof.profile")
         run_cs_draw(module, args)
     elif args.action == 'time':
-        run_cs_time(module)
+        run_cs_time(module, args)
     else:
         parser.print_help()
