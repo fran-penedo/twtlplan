@@ -59,7 +59,7 @@ def get_argparser():
     return parser
 
 
-if __name__ == "__main__":
+def main():
     parser = get_argparser()
     args = parser.parse_args()
     module = importlib.import_module(args.module)
