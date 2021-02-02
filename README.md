@@ -1,5 +1,11 @@
 # TWTLPlan: Language-Guided Path Planning Using Time-Window Temporal Logic (TWTL)
 
+![Case Study 1 scenario](https://franpenedo.com/media/cs1_a.png) 
+![Case Study 1 building tree](https://franpenedo.com/media/cs1_b.png)
+
+![Case Study 1 relaxed path found](https://franpenedo.com/media/cs1_c.png) 
+![Case Study 1 satisfying path found](https://franpenedo.com/media/cs1_d.png)
+
 ## What is TWTLPlan?
 
 TWTLPlan is a tool to solve a 2D path planning problem where the path must satisfy a
