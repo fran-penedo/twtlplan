@@ -3,11 +3,11 @@ antlr-python-runtime==3.1.3
 cycler==0.10.0
 Cython==0.24
 decorator==4.0.9
+numpy==1.16.6
 matplotlib==1.5.1
 multimethods==1.0.0
 networkx==1.11
 nose==1.3.7
-numpy==1.11.0
 pp==1.6.5
 pycddlib==1.0.5
 pyparsing==2.1.4

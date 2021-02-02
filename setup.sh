@@ -1,3 +1,5 @@
+#!/bin/bash
+
 PIPREQ=requirements.txt
 
 LDIR=lib
@@ -23,8 +25,12 @@ git clone $TWTLURL $TWTLDIR
 git clone $LOMAPURL $LOMAPDIR
 
 cd $TWTLDIR
+git checkout 7499d83
 touch src/__init__.py
 ant
 mv src twtl
 cd -
 
+cd $LOMAPDIR
+git checkout ec06a52
+cd -
